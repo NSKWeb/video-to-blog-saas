@@ -58,18 +58,31 @@ Edit `.env.local` and configure the following:
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/video_to_blog?schema=public"
 
-# OpenAI API Key
+# OpenAI Configuration
 OPENAI_API_KEY="your-openai-api-key-here"
+OPENAI_MODEL="gpt-4o-mini"
+OPENAI_TIMEOUT="60000"
+OPENAI_MAX_RETRIES="3"
 
-# Deepgram API Key
+# Deepgram Configuration
 DEEPGRAM_API_KEY="your-deepgram-api-key-here"
+DEEPGRAM_MODEL="nova-2"
+DEEPGRAM_LANGUAGE="en-US"
+DEEPGRAM_TIMEOUT="30000"
 
 # WordPress Configuration (Optional)
 WORDPRESS_SITE_URL="https://your-wordpress-site.com"
+WORDPRESS_USERNAME="your-username"
+WORDPRESS_APP_PASSWORD="your-wordpress-app-password"
 
-# Environment
+# Application
 NODE_ENV="development"
+LOG_LEVEL="info"
+API_TIMEOUT="30000"
+MAX_VIDEO_SIZE="500MB"
 ```
+
+See the [Environment Configuration](#environment-configuration) section below for detailed descriptions.
 
 ### 4. Set up the database
 
@@ -129,20 +142,101 @@ video-to-blog-saas/
 │   │   ├── Header.tsx
 │   │   └── Footer.tsx
 │   ├── lib/                  # Library code
-│   │   └── prisma.ts         # Prisma client instance
+│   │   ├── prisma.ts         # Prisma client instance
+│   │   ├── config.ts         # Centralized configuration
+│   │   ├── openai.ts         # OpenAI client (blog generation)
+│   │   ├── deepgram.ts       # Deepgram client (transcription)
+│   │   ├── wordpress.ts      # WordPress REST API client
+│   │   ├── wordpress-helper.ts # WordPress database integration
+│   │   └── video-fetcher.ts  # Video download & audio extraction
 │   ├── types/                # TypeScript types
-│   │   └── index.ts
+│   │   └── index.ts          # Shared type definitions
 │   └── utils/                # Utility functions
-│       ├── api-response.ts   # API response helpers
-│       ├── error-handler.ts  # Error handling utilities
+│       ├── api-response.ts   # API response formatters
+│       ├── error-handler.ts  # Custom error classes
+│       ├── api-middleware.ts # Request/response middleware
+│       ├── logger.ts         # Logging utilities
 │       └── auth-middleware.ts # Authentication middleware
 ├── .env.example              # Example environment variables
 ├── .env.local                # Local environment variables (git-ignored)
 ├── .gitignore
+├── API.md                    # API documentation
 ├── package.json
 ├── tsconfig.json
 └── README.md
 ```
+
+## 📚 External Service Integration
+
+### OpenAI Client (`src/lib/openai.ts`)
+Functions for AI-powered blog generation:
+- `generateBlogPost()` - Transform transcripts into blog posts
+- `enhanceBlogContent()` - Improve readability and structure
+- `generateSEOMetadata()` - Generate SEO-optimized metadata
+- `validateOpenAIKey()` - Validate API credentials
+
+### Deepgram Client (`src/lib/deepgram.ts`)
+Functions for audio/video transcription:
+- `transcribeFromUrl()` - Transcribe audio from URL
+- `transcribeFromFile()` - Transcribe audio file buffer
+- `validateDeepgramKey()` - Validate API credentials
+
+### WordPress Client (`src/lib/wordpress.ts`)
+WordPress REST API integration:
+- `publishPost()` - Publish blog posts
+- `updatePost()` - Update existing posts
+- `deletePost()` - Delete posts
+- `uploadMedia()` - Upload featured images
+- `getCategories()` / `getTags()` - Fetch taxonomies
+- `testConnection()` - Verify credentials
+
+### Video Fetcher (`src/lib/video-fetcher.ts`)
+Video processing utilities:
+- `downloadVideo()` - Download videos from URLs
+- `extractAudio()` - Extract audio from video files
+- `fetchVideoWithAudio()` - Combined download and extraction
+- `cleanupTempFile()` - Clean up temporary files
+
+## 🔧 Shared Utilities
+
+### Configuration (`src/lib/config.ts`)
+Centralized configuration management:
+- Environment variable validation
+- Configuration loading and caching
+- Helper functions for environment checks
+
+### Error Handler (`src/utils/error-handler.ts`)
+Custom error classes for consistent error handling:
+- `ValidationError` - Input validation failures
+- `AuthenticationError` - Auth failures
+- `ExternalServiceError` - API failures
+- `VideoProcessingError` - Video processing failures
+- `NotFoundError` - Resource not found
+- `RateLimitError` - Rate limit exceeded
+
+### API Response Formatter (`src/utils/api-response.ts`)
+Standardized API responses:
+- `successResponse()` - Success (200)
+- `createdResponse()` - Created (201)
+- `noContentResponse()` - No content (204)
+- Consistent response format with timestamps
+
+### API Middleware (`src/utils/api-middleware.ts`)
+Request/response middleware:
+- `withErrorHandler()` - Catch and handle errors
+- `withJsonBodyValidation()` - Validate JSON requests
+- `withBodyValidation()` - Validate required fields
+- `withLogging()` - Log all requests
+- `withRateLimit()` - Rate limiting (in-memory)
+
+### Logger (`src/utils/logger.ts`)
+Structured logging with Winston:
+- `logError()` - Error level logging
+- `logWarn()` - Warning level logging
+- `logInfo()` - Info level logging
+- `logDebug()` - Debug level logging
+- Service-specific logging functions
+- Request/response logging
 
 ## 🗄 Database Schema
 
@@ -226,16 +320,97 @@ npm run lint             # Run ESLint
 ### OpenAI API Key
 1. Go to [OpenAI Platform](https://platform.openai.com)
 2. Sign up or log in
-3. Navigate to API Keys section
-4. Create a new API key
-5. Copy and add to `.env.local`
+3. Navigate to [API Keys section](https://platform.openai.com/api-keys)
+4. Click "Create new secret key"
+5. Give your key a name (e.g., "Video-to-Blog SaaS")
+6. Copy the key immediately (you won't see it again)
+7. Add to `.env.local`: `OPENAI_API_KEY="sk-..."`
+
+**Recommended Models:**
+- `gpt-4o-mini` - Fast and cost-effective for blog generation (recommended)
+- `gpt-4o` - Higher quality, more expensive
+- `gpt-4-turbo` - Good balance of quality and cost
+- `gpt-3.5-turbo` - Fastest, lowest cost, lower quality
 
 ### Deepgram API Key
 1. Go to [Deepgram Console](https://console.deepgram.com)
-2. Sign up or log in
-3. Navigate to API Keys
-4. Create a new API key
-5. Copy and add to `.env.local`
+2. Sign up for free account (includes 200 hours/month free)
+3. Navigate to API Keys in the sidebar
+4. Click "Create API Key"
+5. Give your key a name and optional expiration
+6. Copy the key
+7. Add to `.env.local`: `DEEPGRAM_API_KEY="..."`
+
+**Recommended Models:**
+- `nova-2` - Most accurate and fastest (recommended)
+- `nova` - Good balance of speed and accuracy
+- `enhance` - Enhanced accuracy, slower processing
+- `base` - Fastest, basic accuracy
+
+### WordPress Application Password
+1. Log in to your WordPress admin dashboard
+2. Go to **Users > Profile**
+3. Scroll down to "Application Passwords" section
+4. Enter a name for your application (e.g., "Video-to-Blog SaaS")
+5. Click "Add New Application Password"
+6. Copy the generated password immediately (format: `abcd 1234 efgh 5678 ijkl 8901`)
+7. Add to `.env.local`:
+   ```
+   WORDPRESS_SITE_URL="https://your-wordpress-site.com"
+   WORDPRESS_USERNAME="your-username"
+   WORDPRESS_APP_PASSWORD="abcd 1234 efgh 5678 ijkl 8901"
+   ```
+
+**Note:** Keep a copy of your application passwords - WordPress won't show them again after generation.
+
+## ⚙️ Environment Configuration
+
+### Database Configuration
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes | - |
+
+Format: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=SCHEMA`
+
+### OpenAI Configuration
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `OPENAI_API_KEY` | OpenAI API authentication key | Yes | - |
+| `OPENAI_MODEL` | GPT model to use | No | `gpt-4o-mini` |
+| `OPENAI_TIMEOUT` | API timeout in milliseconds | No | `60000` |
+| `OPENAI_MAX_RETRIES` | Maximum retry attempts | No | `3` |
+
+### Deepgram Configuration
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `DEEPGRAM_API_KEY` | Deepgram API authentication key | Yes | - |
+| `DEEPGRAM_MODEL` | Transcription model | No | `nova-2` |
+| `DEEPGRAM_LANGUAGE` | Transcription language | No | `en-US` |
+| `DEEPGRAM_TIMEOUT` | API timeout in milliseconds | No | `30000` |
+
+### WordPress Configuration
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `WORDPRESS_SITE_URL` | WordPress site URL | No* | - |
+| `WORDPRESS_USERNAME` | WordPress username | No* | - |
+| `WORDPRESS_APP_PASSWORD` | WordPress application password | No* | - |
+
+*WordPress configuration is optional for MVP. Required only if publishing to WordPress.
+
+### Application Configuration
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `NODE_ENV` | Environment mode | No | `development` |
+| `LOG_LEVEL` | Logging verbosity | No | `info` |
+| `API_TIMEOUT` | Default API timeout (ms) | No | `30000` |
+| `MAX_VIDEO_SIZE` | Maximum video file size | No | `500MB` |
+
+**Log Levels:** `error`, `warn`, `info`, `debug`
 
 ## 🎨 AdSense Compatibility
 
@@ -252,24 +427,48 @@ Future implementation will include:
 
 ## 🚧 Development Roadmap
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation ✅
 - ✅ Next.js 15 setup with App Router
 - ✅ Prisma ORM with PostgreSQL
 - ✅ Basic UI structure
 - ✅ API route scaffolding
+- ✅ OpenAI client integration
+- ✅ Deepgram client integration
+- ✅ WordPress REST API client
+- ✅ Video fetcher utilities
+- ✅ Error handling system
+- ✅ API response formatters
+- ✅ Request/response middleware
+- ✅ Logging infrastructure
+- ✅ Configuration management
+- ✅ TypeScript type definitions
 
-### Phase 2: Core Features (Next)
-- 🔄 Video download and processing
-- 🔄 Deepgram integration for transcription
-- 🔄 OpenAI integration for blog generation
-- 🔄 User authentication
-- 🔄 WordPress publishing
+### Phase 2: Core Features
+- 🔄 User authentication system
+- ⏳ Video processing API endpoints
+- ⏳ Blog generation API endpoints
+- ⏳ WordPress publishing API endpoints
+- ⏳ User dashboard UI
+- ⏳ Video upload and processing workflow
+- ⏳ Transcription to blog conversion pipeline
 
 ### Phase 3: Enhancement
-- ⏳ User dashboard
-- ⏳ Payment integration
+- ⏳ Payment integration (Stripe)
 - ⏳ Advanced editing tools
 - ⏳ Analytics and reporting
+- ⏳ Bulk processing capabilities
+- ⏳ Custom prompt templates
+- ⏳ Video preview player
+- ⏳ Real-time progress tracking
+
+### Phase 4: Production Ready
+- ⏳ Performance optimization
+- ⏳ Comprehensive testing
+- ⏳ CI/CD pipeline
+- ⏳ Monitoring and alerting
+- ⏳ Scalability improvements
+- ⏳ Advanced rate limiting
+- ⏳ Redis caching
 
 ## 🤝 Contributing
 
