@@ -18,21 +18,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { videoUrl } = body;
-
-    if (!videoUrl) {
-      return errorResponse('Video URL is required', 400);
-    }
-
-    return createdResponse(
-      {
-        message: 'Video processing endpoint - implementation pending',
-        videoUrl,
-        placeholder: true,
-      },
-      'Video job will be created and processed in Task 2'
-    );
+    return errorResponse('This endpoint has been moved to POST /api/videos/process. Please use the new endpoint for video processing.');
   } catch (error) {
     return handleApiError(error);
   }
