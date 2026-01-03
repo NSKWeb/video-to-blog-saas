@@ -8,7 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 
 const createPrismaClient = () => {
   const databaseUrl = process.env.DATABASE_URL;
-  
+
   if (!databaseUrl) {
     console.warn('DATABASE_URL not set, Prisma client will not work properly');
     return new PrismaClient();
@@ -22,3 +22,10 @@ const createPrismaClient = () => {
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+/**
+ * Get Prisma client singleton instance
+ */
+export function getClient(): PrismaClient {
+  return prisma;
+}
