@@ -21,22 +21,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { videoJobId, title, content } = body;
-
-    if (!videoJobId || !title || !content) {
-      return errorResponse('videoJobId, title, and content are required', 400);
-    }
-
-    return createdResponse(
-      {
-        message: 'Blog generation endpoint - implementation pending',
-        videoJobId,
-        title,
-        placeholder: true,
-      },
-      'Blog post generation will be implemented in Task 2'
-    );
+    return errorResponse('This endpoint has been moved to POST /api/blog/generate. Please use the new endpoint for blog generation.');
   } catch (error) {
     return handleApiError(error);
   }
