@@ -133,14 +133,32 @@ video-to-blog-saas/
 │   │   │   ├── auth/         # Authentication endpoints
 │   │   │   ├── videos/       # Video processing endpoints
 │   │   │   ├── blog/         # Blog generation endpoints
+│   │   │   ├── jobs/         # Job status endpoints
+│   │   │   ├── workflow/     # Workflow orchestration
 │   │   │   └── wordpress/    # WordPress publishing endpoints
+│   │   ├── jobs/             # Job details pages
+│   │   │   └── [jobId]/      # Dynamic job detail page
+│   │   │       └── page.tsx  # Job status & blog preview page
 │   │   ├── layout.tsx        # Root layout
 │   │   ├── page.tsx          # Home page
 │   │   ├── loading.tsx       # Loading state
-│   │   └── error.tsx         # Error boundary
+│   │   ├── error.tsx         # Error boundary
+│   │   └── globals.css       # Global styles & prose
 │   ├── components/           # React components
-│   │   ├── Header.tsx
-│   │   └── Footer.tsx
+│   │   ├── VideoInputForm.tsx    # Video URL input form
+│   │   ├── ProcessingStatus.tsx  # Processing step indicators
+│   │   ├── BlogPreview.tsx       # Blog post preview component
+│   │   ├── WordPressPublishPanel.tsx # WordPress publishing UI
+│   │   ├── WordPressConfigModal.tsx # WordPress config modal
+│   │   ├── Header.tsx            # Site header
+│   │   ├── Footer.tsx            # Site footer
+│   │   ├── Button.tsx            # Reusable button component
+│   │   ├── Input.tsx             # Reusable input component
+│   │   ├── Modal.tsx             # Modal/dialog component
+│   │   ├── Spinner.tsx           # Loading spinner
+│   │   └── Toast.tsx             # Toast notifications
+│   ├── hooks/                # React hooks
+│   │   └── useJobStatus.ts   # Job status polling hook
 │   ├── lib/                  # Library code
 │   │   ├── prisma.ts         # Prisma client instance
 │   │   ├── config.ts         # Centralized configuration
@@ -150,13 +168,15 @@ video-to-blog-saas/
 │   │   ├── wordpress-helper.ts # WordPress database integration
 │   │   └── video-fetcher.ts  # Video download & audio extraction
 │   ├── types/                # TypeScript types
-│   │   └── index.ts          # Shared type definitions
+│   │   ├── index.ts          # Shared type definitions
+│   │   └── api.ts            # API response types
 │   └── utils/                # Utility functions
 │       ├── api-response.ts   # API response formatters
 │       ├── error-handler.ts  # Custom error classes
 │       ├── api-middleware.ts # Request/response middleware
 │       ├── logger.ts         # Logging utilities
-│       └── auth-middleware.ts # Authentication middleware
+│       ├── auth-middleware.ts # Authentication middleware
+│       └── fetch-helper.ts   # API fetch helper
 ├── .env.example              # Example environment variables
 ├── .env.local                # Local environment variables (git-ignored)
 ├── .gitignore
@@ -196,6 +216,148 @@ Video processing utilities:
 - `extractAudio()` - Extract audio from video files
 - `fetchVideoWithAudio()` - Combined download and extraction
 - `cleanupTempFile()` - Clean up temporary files
+
+## 🎨 Frontend Components
+
+### Core Components
+
+#### VideoInputForm (`src/components/VideoInputForm.tsx`)
+Video URL submission form with validation:
+- URL format validation
+- Character limit enforcement (500 characters)
+- Loading states during submission
+- Error handling with retry
+- Auto-redirect to job details on success
+- WordPress configuration warnings
+
+#### ProcessingStatus (`src/components/ProcessingStatus.tsx`)
+Visual progress indicators for video processing:
+- Step-by-step progress display
+- Status badges (pending, active, completed, failed)
+- Real-time updates via polling
+- Color-coded states (gray, blue, green, red)
+- Error display with details
+- Completion message
+
+#### BlogPreview (`src/components/BlogPreview.tsx`)
+Blog post preview with metadata:
+- Title and content display
+- Word count and reading time
+- Copy content to clipboard
+- Responsive typography with prose styles
+- AdSense placement markers
+- Loading skeleton state
+
+#### WordPressPublishPanel (`src/components/WordPressPublishPanel.tsx`)
+WordPress integration and publishing UI:
+- Configuration status display
+- Publish button with confirmation dialog
+- WordPress post URL display after publishing
+- Copy post URL functionality
+- Configuration modal integration
+- Error handling with retry
+
+#### WordPressConfigModal (`src/components/WordPressPublishPanel.tsx`)
+WordPress connection configuration modal:
+- Site URL, username, and app password fields
+- Connection testing before saving
+- Edit existing configuration
+- Helpful links to WordPress documentation
+- Success/error messages
+
+### Reusable UI Components
+
+#### Button (`src/components/Button.tsx`)
+Versatile button component:
+- Variants: primary, secondary, danger, ghost
+- Sizes: sm, md, lg
+- Loading state with spinner
+- Full width option
+- Disabled state handling
+
+#### Input (`src/components/Input.tsx`)
+Form input component with validation:
+- Label and help text support
+- Error state display
+- Full width option
+- ARIA attributes for accessibility
+
+#### Modal (`src/components/Modal.tsx`)
+Modal/dialog component:
+- Backdrop with click-to-close
+- Keyboard escape support
+- Multiple size options (sm, md, lg, xl)
+- ModalActions component for button groups
+- Focus management
+
+#### Spinner (`src/components/Spinner.tsx`)
+Loading spinner component:
+- Multiple sizes (sm, md, lg)
+- Color options (blue, gray, white)
+- Accessible with ARIA labels
+
+#### Toast (`src/components/Toast.tsx`)
+Toast notification system:
+- Success, error, and info types
+- Auto-dismiss after 4-5 seconds
+- ToastContainer for multiple toasts
+- Close button
+- Smooth animations
+
+### Custom Hooks
+
+#### useJobStatus (`src/hooks/useJobStatus.ts`)
+Job status polling hook:
+- Automatic polling every 3 seconds
+- Stops when job completes or fails
+- Configurable poll interval
+- Max retry attempts
+- Current step detection
+- Manual refetch control
+
+### Utility Functions
+
+#### Fetch Helper (`src/utils/fetch-helper.ts`)
+API request wrapper:
+- Consistent error handling
+- Timeout support (default: 30s)
+- Request/response logging
+- Auth token support
+- HTTP method helpers (get, post, put, delete, patch)
+- ApiError class for error handling
+
+### Pages
+
+#### Home Page (`src/app/page.tsx`)
+Landing page with:
+- Hero section with value proposition
+- VideoInputForm component
+- Feature highlights
+- Benefits section
+- AdSense placement zones
+- Responsive layout
+
+#### Job Details Page (`src/app/jobs/[jobId]/page.tsx`)
+Complete job tracking page:
+- ProcessingStatus component
+- BlogPreview component
+- WordPressPublishPanel component
+- Back button to home
+- Share job URL functionality
+- Real-time updates via polling
+- Error handling
+
+### Styling
+
+#### Global CSS (`src/app/globals.css`)
+Enhanced with:
+- Prose styles for blog content (Markdown/HTML rendering)
+- Responsive typography
+- Typography scale for headings, paragraphs, lists
+- Code block and preformatted text styles
+- Table styling
+- Blockquote and link styles
+- Mobile-responsive adjustments
 
 ## 🔧 Shared Utilities
 
@@ -443,14 +605,33 @@ Future implementation will include:
 - ✅ Configuration management
 - ✅ TypeScript type definitions
 
-### Phase 2: Core Features
-- 🔄 User authentication system
-- ⏳ Video processing API endpoints
-- ⏳ Blog generation API endpoints
-- ⏳ WordPress publishing API endpoints
+### Phase 2: Core Features ✅
+- ✅ Video processing API endpoints
+- ✅ Blog generation API endpoints
+- ✅ WordPress publishing API endpoints
+- ✅ Job status tracking API
+- ✅ Complete workflow orchestration
+- 🔄 User authentication system (in progress)
 - ⏳ User dashboard UI
-- ⏳ Video upload and processing workflow
-- ⏳ Transcription to blog conversion pipeline
+
+### Phase 2.5: Frontend UI ✅
+- ✅ VideoInputForm component
+- ✅ ProcessingStatus component with real-time polling
+- ✅ BlogPreview component
+- ✅ WordPressPublishPanel component
+- ✅ WordPressConfigModal component
+- ✅ Job details page with complete workflow
+- ✅ Updated home page with form integration
+- ✅ Header and navigation components
+- ✅ Custom hook for job status polling
+- ✅ API fetch helper
+- ✅ Reusable UI components (Button, Input, Modal, Spinner, Toast)
+- ✅ TypeScript types for API responses
+- ✅ Responsive design (mobile, tablet, desktop)
+- ✅ Error handling and user feedback
+- ✅ Loading states and spinners
+- ✅ Toast notification system
+- ✅ Prose styles for blog content
 
 ### Phase 3: Enhancement
 - ⏳ Payment integration (Stripe)
@@ -459,7 +640,10 @@ Future implementation will include:
 - ⏳ Bulk processing capabilities
 - ⏳ Custom prompt templates
 - ⏳ Video preview player
-- ⏳ Real-time progress tracking
+- ⏳ User dashboard with job history
+- ⏳ Download blog as PDF/Markdown
+- ⏳ Blog post editing interface
+- ⏳ Category and tag management
 
 ### Phase 4: Production Ready
 - ⏳ Performance optimization
@@ -469,6 +653,9 @@ Future implementation will include:
 - ⏳ Scalability improvements
 - ⏳ Advanced rate limiting
 - ⏳ Redis caching
+- ⏳ Email notifications
+- ⏳ SEO optimization
+- ⏳ Security hardening
 
 ## 🤝 Contributing
 
