@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  videoJobs        VideoJob[]
+  wordpressConfigs WordPressConfig[]
+
+  @@map("users")
+}
+
+model VideoJob {
+  id            String   @id @default(cuid())
+  userId        String
+  videoUrl      String
+  status        String   @default("pending") // pending, processing, completed, failed
+  transcription String?  @db.Text
+  blogPost      String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blogPosts BlogPost[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("video_jobs")
+}
+
+model BlogPost {
+  id               String   @id @default(cuid())
+  videoJobId       String
+  title            String
+  content          String   @db.Text
+  wordCount        Int      @default(0)
+  status           String   @default("draft") // draft, published, failed
+  wordpressPostId  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  videoJob VideoJob @relation(fields: [videoJobId], references: [id], onDelete: Cascade)
+
+  @@index([videoJobId])
+  @@index([status])
+  @@map("blog_posts")
+}
+
+model WordPressConfig {
+  id          String   @id @default(cuid())
+  userId      String
+  siteUrl     String
+  username    String
+  appPassword String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("wordpress_configs")
+}
