@@ -5,9 +5,16 @@ import { logInfo, logError } from '@/utils/logger';
 import { prisma } from '@/lib/prisma';
 import { isValidVideoUrl, fetchVideoWithAudio, cleanupTempFile } from '@/lib/video-fetcher';
 import { transcribeFromFile } from '@/lib/deepgram';
+import { withAuth } from '@/utils/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId, error: authError } = await withAuth(request);
+
+    if (authError || !userId) {
+      return handleApiError(new Error(authError || 'Authentication required'));
+    }
+
     const body = await request.json();
     const { videoUrl } = body;
 
@@ -19,7 +26,7 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Invalid video URL format');
     }
 
-    logInfo('Starting video processing', { videoUrl });
+    logInfo('Starting video processing', { videoUrl, userId });
 
     if (!isValidVideoUrl(videoUrl)) {
       throw new VideoProcessingError('Invalid or unsupported video URL');
@@ -29,7 +36,7 @@ export async function POST(request: NextRequest) {
       data: {
         videoUrl,
         status: 'processing',
-        userId: 'system', // TODO: Get from authenticated user
+        userId,
       },
     });
 

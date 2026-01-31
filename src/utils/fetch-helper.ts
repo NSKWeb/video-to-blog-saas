@@ -3,6 +3,8 @@
  * Provides consistent error handling and response parsing
  */
 
+import { getToken } from './token';
+
 export interface FetchOptions extends RequestInit {
   timeout?: number;
   includeAuth?: boolean;
@@ -35,9 +37,9 @@ export async function apiRequest<T>(
     ...fetchOptions.headers,
   };
 
-  // Add auth token if needed (for future auth implementation)
+  // Add auth token if needed
   if (includeAuth) {
-    const token = localStorage.getItem('authToken');
+    const token = getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }

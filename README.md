@@ -7,7 +7,8 @@ Transform your videos into high-quality blog posts with AI-powered transcription
 - **Video Transcription**: Upload videos and get accurate transcriptions using Deepgram AI
 - **Blog Generation**: Transform transcripts into well-structured blog posts using OpenAI GPT
 - **WordPress Integration**: Publish directly to WordPress with one click
-- **User Management**: Secure authentication and user profiles
+- **User Authentication**: Secure JWT-based authentication with password hashing
+- **Protected Routes**: User-scoped data (jobs, blog posts, WordPress configs)
 - **Dashboard**: Track all your video-to-blog conversions in one place
 
 ## 🛠 Tech Stack
@@ -131,6 +132,10 @@ video-to-blog-saas/
 │   ├── app/                   # Next.js App Router
 │   │   ├── api/              # API routes
 │   │   │   ├── auth/         # Authentication endpoints
+│   │   │   │   ├── signup/   # User registration
+│   │   │   │   ├── login/    # User login
+│   │   │   │   ├── logout/   # User logout
+│   │   │   │   └── me/       # Get current user
 │   │   │   ├── videos/       # Video processing endpoints
 │   │   │   ├── blog/         # Blog generation endpoints
 │   │   │   ├── jobs/         # Job status endpoints
@@ -139,17 +144,25 @@ video-to-blog-saas/
 │   │   ├── jobs/             # Job details pages
 │   │   │   └── [jobId]/      # Dynamic job detail page
 │   │   │       └── page.tsx  # Job status & blog preview page
+│   │   ├── login/            # Login page
+│   │   │   └── page.tsx
+│   │   ├── signup/           # Sign up page
+│   │   │   └── page.tsx
 │   │   ├── layout.tsx        # Root layout
 │   │   ├── page.tsx          # Home page
 │   │   ├── loading.tsx       # Loading state
 │   │   ├── error.tsx         # Error boundary
 │   │   └── globals.css       # Global styles & prose
 │   ├── components/           # React components
+│   │   ├── auth/            # Authentication components
+│   │   │   ├── SignUpForm.tsx # User registration form
+│   │   │   └── LoginForm.tsx   # User login form
 │   │   ├── VideoInputForm.tsx    # Video URL input form
 │   │   ├── ProcessingStatus.tsx  # Processing step indicators
 │   │   ├── BlogPreview.tsx       # Blog post preview component
 │   │   ├── WordPressPublishPanel.tsx # WordPress publishing UI
 │   │   ├── WordPressConfigModal.tsx # WordPress config modal
+│   │   ├── ProtectedRoute.tsx   # Route protection wrapper
 │   │   ├── Header.tsx            # Site header
 │   │   ├── Footer.tsx            # Site footer
 │   │   ├── Button.tsx            # Reusable button component
@@ -157,8 +170,11 @@ video-to-blog-saas/
 │   │   ├── Modal.tsx             # Modal/dialog component
 │   │   ├── Spinner.tsx           # Loading spinner
 │   │   └── Toast.tsx             # Toast notifications
+│   ├── contexts/            # React contexts
+│   │   └── AuthContext.tsx  # Authentication context
 │   ├── hooks/                # React hooks
-│   │   └── useJobStatus.ts   # Job status polling hook
+│   │   ├── useAuth.ts       # Authentication hook
+│   │   └── useJobStatus.ts  # Job status polling hook
 │   ├── lib/                  # Library code
 │   │   ├── prisma.ts         # Prisma client instance
 │   │   ├── config.ts         # Centralized configuration
@@ -169,13 +185,17 @@ video-to-blog-saas/
 │   │   └── video-fetcher.ts  # Video download & audio extraction
 │   ├── types/                # TypeScript types
 │   │   ├── index.ts          # Shared type definitions
-│   │   └── api.ts            # API response types
+│   │   ├── api.ts            # API response types
+│   │   └── auth.ts          # Authentication types
 │   └── utils/                # Utility functions
 │       ├── api-response.ts   # API response formatters
 │       ├── error-handler.ts  # Custom error classes
 │       ├── api-middleware.ts # Request/response middleware
 │       ├── logger.ts         # Logging utilities
 │       ├── auth-middleware.ts # Authentication middleware
+│       ├── jwt.ts            # JWT token utilities
+│       ├── password.ts        # Password hashing utilities
+│       ├── token.ts          # Client-side token management
 │       └── fetch-helper.ts   # API fetch helper
 ├── .env.example              # Example environment variables
 ├── .env.local                # Local environment variables (git-ignored)
@@ -405,9 +425,11 @@ Structured logging with Winston:
 ### User
 - id (String, Primary Key)
 - email (String, Unique)
-- password (String)
+- password (String) - bcrypt hashed
+- name (String, Optional)
 - createdAt (DateTime)
 - updatedAt (DateTime)
+- Relations: videoJobs, wordpressConfigs, blogPosts
 
 ### VideoJob
 - id (String, Primary Key)
@@ -421,6 +443,7 @@ Structured logging with Winston:
 
 ### BlogPost
 - id (String, Primary Key)
+- userId (String, Foreign Key)
 - videoJobId (String, Foreign Key)
 - title (String)
 - content (Text)
@@ -429,6 +452,7 @@ Structured logging with Winston:
 - wordpressPostId (String, Optional)
 - createdAt (DateTime)
 - updatedAt (DateTime)
+- Relations: user, videoJob
 
 ### WordPressConfig
 - id (String, Primary Key)
@@ -442,7 +466,10 @@ Structured logging with Winston:
 ## 🔌 API Endpoints
 
 ### Authentication
-- `POST /api/auth` - User authentication (placeholder)
+- `POST /api/auth/signup` - Create new user account
+- `POST /api/auth/login` - Authenticate user
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/logout` - Logout user
 
 ### Videos
 - `GET /api/videos` - Get all video jobs
@@ -453,10 +480,11 @@ Structured logging with Winston:
 - `POST /api/blog` - Create new blog post (placeholder)
 
 ### WordPress
-- `GET /api/wordpress` - Get WordPress configuration (placeholder)
-- `POST /api/wordpress` - Publish to WordPress (placeholder)
+- `GET /api/wordpress/config` - Get WordPress configuration
+- `POST /api/wordpress/config` - Save WordPress configuration
+- `POST /api/wordpress/publish` - Publish to WordPress
 
-**Note**: Placeholder endpoints return mock responses. Full implementation will be completed in Task 2.
+**Note**: All API endpoints (except auth) require authentication via JWT token.
 
 ## 📦 Available Scripts
 
@@ -553,6 +581,20 @@ Format: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=SCHEMA`
 | `DEEPGRAM_LANGUAGE` | Transcription language | No | `en-US` |
 | `DEEPGRAM_TIMEOUT` | API timeout in milliseconds | No | `30000` |
 
+### Authentication Configuration
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `JWT_SECRET` | Secret key for JWT signing | Yes | - |
+| `JWT_EXPIRY` | Token expiration time | No | `7d` |
+
+**Generate JWT Secret:**
+```bash
+openssl rand -base64 32
+```
+
+**Important:** Never use the example JWT_SECRET in production. Use a strong, unique value.
+
 ### WordPress Configuration
 
 | Variable | Description | Required | Default |
@@ -573,6 +615,79 @@ Format: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=SCHEMA`
 | `MAX_VIDEO_SIZE` | Maximum video file size | No | `500MB` |
 
 **Log Levels:** `error`, `warn`, `info`, `debug`
+
+## 🔐 Authentication
+
+The application includes a complete JWT-based authentication system:
+
+### Features
+- Secure password hashing with bcrypt
+- JWT token-based authentication
+- Sign up and login endpoints
+- Protected API routes
+- User-scoped data (jobs, blog posts, WordPress configs)
+- Password strength validation
+- Rate limiting on authentication attempts
+
+### Getting Started
+
+1. **Set up environment variables** (see Authentication Configuration above)
+2. **Generate a JWT secret**: `openssl rand -base64 32`
+3. **Run database migrations**: `npm run prisma:migrate`
+
+### Usage
+
+**Sign Up:**
+```bash
+curl -X POST http://localhost:3000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"SecurePass123!","name":"John Doe"}'
+```
+
+**Login:**
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"SecurePass123!"}'
+```
+
+**Protected API Request:**
+```bash
+curl -X GET http://localhost:3000/api/jobs/abc123 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Frontend Integration
+
+```tsx
+import { useAuth } from '@/hooks/useAuth';
+
+function MyComponent() {
+  const { user, isAuthenticated, login, logout } = useAuth();
+
+  if (!isAuthenticated) {
+    return <button onClick={() => login('email', 'password')}>Login</button>;
+  }
+
+  return <div>Welcome, {user?.email}</div>;
+}
+```
+
+### Password Requirements
+
+- Minimum 8 characters
+- At least 1 uppercase letter
+- At least 1 number
+- At least 1 special character
+
+### Security
+
+- Passwords hashed with bcrypt (10 salt rounds)
+- JWT tokens expire after 7 days
+- Rate limiting: 5 login attempts per 15 minutes
+- Resource ownership verification on all protected routes
+
+For detailed documentation, see [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## 🎨 AdSense Compatibility
 
@@ -611,7 +726,10 @@ Future implementation will include:
 - ✅ WordPress publishing API endpoints
 - ✅ Job status tracking API
 - ✅ Complete workflow orchestration
-- 🔄 User authentication system (in progress)
+- ✅ User authentication system (JWT, bcrypt)
+- ✅ Sign up and login pages
+- ✅ Protected API routes
+- ✅ Resource ownership verification
 - ⏳ User dashboard UI
 
 ### Phase 2.5: Frontend UI ✅
@@ -632,6 +750,10 @@ Future implementation will include:
 - ✅ Loading states and spinners
 - ✅ Toast notification system
 - ✅ Prose styles for blog content
+- ✅ Authentication components (SignUpForm, LoginForm)
+- ✅ AuthContext and useAuth hook
+- ✅ ProtectedRoute component
+- ✅ Login and signup pages
 
 ### Phase 3: Enhancement
 - ⏳ Payment integration (Stripe)

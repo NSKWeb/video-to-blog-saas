@@ -13,11 +13,13 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
+  name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   videoJobs        VideoJob[]
   wordpressConfigs WordPressConfig[]
+  blogPosts        BlogPost[]
 
   @@map("users")
 }
@@ -42,6 +44,7 @@ model VideoJob {
 
 model BlogPost {
   id               String   @id @default(cuid())
+  userId           String
   videoJobId       String
   title            String
   content          String   @db.Text
@@ -51,8 +54,10 @@ model BlogPost {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   videoJob VideoJob @relation(fields: [videoJobId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@index([videoJobId])
   @@index([status])
   @@map("blog_posts")

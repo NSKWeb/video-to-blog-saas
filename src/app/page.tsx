@@ -1,12 +1,16 @@
 import { VideoInputForm } from '@/components/VideoInputForm';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { useAuth } from '@/hooks/useAuth';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { Button } from '@/components/Button';
+import Link from 'next/link';
 
-export default function Home() {
+function HomeContent() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-600 to-blue-800 text-white py-16 md:py-24">
         <div className="container mx-auto px-4">
@@ -18,6 +22,20 @@ export default function Home() {
               Upload a video, get AI-powered transcription and professionally
               written blog content in minutes
             </p>
+            {!isAuthenticated && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/signup">
+                  <Button variant="primary" size="lg">
+                    Get Started Free
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button variant="secondary" size="lg">
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -25,18 +43,36 @@ export default function Home() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          {/* Video Input Form */}
-          <section className="bg-white rounded-lg shadow-lg p-8 mb-12">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                Get Started
+          {/* Video Input Form - Only show if authenticated */}
+          {isAuthenticated ? (
+            <section className="bg-white rounded-lg shadow-lg p-8 mb-12">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                  Get Started
+                </h2>
+                <p className="text-gray-600">
+                  Paste your video URL and let AI do the rest
+                </p>
+              </div>
+              <VideoInputForm />
+            </section>
+          ) : (
+            <section className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg shadow-lg p-8 mb-12 text-center">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                Sign Up to Start Converting Videos
               </h2>
-              <p className="text-gray-600">
-                Paste your video URL and let AI do the rest
+              <p className="text-gray-600 mb-6">
+                Create a free account to transform your videos into blog posts with AI
               </p>
-            </div>
-            <VideoInputForm />
-          </section>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/signup">
+                  <Button variant="primary">
+                    Create Free Account
+                  </Button>
+                </Link>
+              </div>
+            </section>
+          )}
 
           {/* AdSense Placement: In-feed Ad */}
           {/* AdSense Placement: In-feed Ad - Can be placed between content sections */}
@@ -198,5 +234,13 @@ export default function Home() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <>
+      <HomeContent />
+    </>
   );
 }
