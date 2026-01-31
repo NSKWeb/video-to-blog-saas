@@ -7,9 +7,16 @@ import { isValidVideoUrl, fetchVideoWithAudio, cleanupTempFile } from '@/lib/vid
 import { transcribeFromFile } from '@/lib/deepgram';
 import { generateBlogPost } from '@/lib/openai';
 import { publishBlogPostForUser } from '@/lib/wordpress-helper';
+import { withAuth } from '@/utils/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId, error: authError } = await withAuth(request);
+
+    if (authError || !userId) {
+      return handleApiError(new Error(authError || 'Authentication required'));
+    }
+
     const body = await request.json();
     const { videoUrl, wordpressConfig, publishToWordPress = false } = body;
 
@@ -21,14 +28,14 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Invalid video URL format');
     }
 
-    logInfo('Starting complete workflow', { videoUrl, publishToWordPress });
+    logInfo('Starting complete workflow', { videoUrl, publishToWordPress, userId });
 
     // Step 1: Create initial job
     const videoJob = await prisma.videoJob.create({
       data: {
         videoUrl,
         status: 'processing',
-        userId: 'system',
+        userId,
       },
     });
 
@@ -67,6 +74,7 @@ export async function POST(request: NextRequest) {
       // Step 6: Create blog post record
       const blogPost = await prisma.blogPost.create({
         data: {
+          userId,
           videoJobId: videoJob.id,
           title: blogResult.title,
           content: blogResult.content,
@@ -94,7 +102,7 @@ export async function POST(request: NextRequest) {
         if (!wpConfig) {
           // Try to fetch from database
           const dbConfig = await prisma.wordPressConfig.findUnique({
-            where: { userId: 'system' },
+            where: { userId },
           });
           if (dbConfig) {
             wpConfig = {
@@ -106,7 +114,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (wpConfig) {
-          wordpressResult = await publishBlogPostForUser('system', {
+          wordpressResult = await publishBlogPostForUser(userId, {
             title: blogPost.title,
             content: blogPost.content,
             status: 'publish',

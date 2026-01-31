@@ -4,9 +4,16 @@ import { ValidationError, ExternalServiceError, handleApiError } from '@/utils/e
 import { logInfo, logError } from '@/utils/logger';
 import { prisma } from '@/lib/prisma';
 import { testWordPressConnectionForUser } from '@/lib/wordpress-helper';
+import { withAuth } from '@/utils/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId, error: authError } = await withAuth(request);
+
+    if (authError || !userId) {
+      return handleApiError(new Error(authError || 'Authentication required'));
+    }
+
     const body = await request.json();
     const { siteUrl, username, appPassword } = body;
 
@@ -18,19 +25,17 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Invalid siteUrl format');
     }
 
-    logInfo('Testing WordPress connection', { siteUrl, username });
+    logInfo('Testing WordPress connection', { siteUrl, username, userId });
 
     const wpConfig = { siteUrl, username, appPassword };
 
-    const isValid = await testWordPressConnectionForUser('system', wpConfig);
+    const isValid = await testWordPressConnectionForUser(userId, wpConfig);
 
     if (!isValid) {
       throw new ExternalServiceError('WORDPRESS', 'Invalid credentials or site unreachable');
     }
 
-    logInfo('WordPress connection verified, saving config');
-
-    const userId = 'system'; // TODO: Get from authenticated user
+    logInfo('WordPress connection verified, saving config', { userId });
 
     const existingConfig = await prisma.wordPressConfig.findUnique({
       where: { userId },
@@ -71,9 +76,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const userId = 'system'; // TODO: Get from authenticated user
+    const { userId, error: authError } = await withAuth(request);
+
+    if (authError || !userId) {
+      return handleApiError(new Error(authError || 'Authentication required'));
+    }
 
     const config = await prisma.wordPressConfig.findUnique({
       where: { userId },

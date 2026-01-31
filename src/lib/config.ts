@@ -7,6 +7,10 @@ interface AppConfig {
   database: {
     url: string;
   };
+  auth: {
+    jwtSecret: string;
+    jwtExpiry: string;
+  };
   openai: {
     apiKey: string;
     model: string;
@@ -60,6 +64,10 @@ export function loadConfig(): AppConfig {
     const config: AppConfig = {
       database: {
         url: validateRequiredEnv('DATABASE_URL'),
+      },
+      auth: {
+        jwtSecret: validateRequiredEnv('JWT_SECRET'),
+        jwtExpiry: getOptionalEnv('JWT_EXPIRY', '7d'),
       },
       openai: {
         apiKey: validateRequiredEnv('OPENAI_API_KEY'),

@@ -5,9 +5,16 @@ import { logInfo, logError } from '@/utils/logger';
 import { prisma } from '@/lib/prisma';
 import { generateBlogPost } from '@/lib/openai';
 import type { SEOMetadata } from '@/types';
+import { withAuth, requireResourceOwner } from '@/utils/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId, error: authError } = await withAuth(request);
+
+    if (authError || !userId) {
+      return handleApiError(new Error(authError || 'Authentication required'));
+    }
+
     const body = await request.json();
     const { jobId, transcript, titleSuggestion } = body;
 
@@ -17,9 +24,10 @@ export async function POST(request: NextRequest) {
 
     let finalTranscript: string;
     let videoJob;
+    let userIdToUse = userId;
 
     if (jobId) {
-      logInfo('Starting blog generation for job', { jobId });
+      logInfo('Starting blog generation for job', { jobId, userId });
 
       videoJob = await prisma.videoJob.findUnique({
         where: { id: jobId },
@@ -31,6 +39,10 @@ export async function POST(request: NextRequest) {
       if (!videoJob) {
         throw new NotFoundError('VideoJob', jobId);
       }
+
+      // Verify user owns this video job
+      requireResourceOwner(userId, videoJob.userId);
+      userIdToUse = videoJob.userId;
 
       if (videoJob.blogPosts.length > 0) {
         const existingBlog = videoJob.blogPosts[0];
@@ -80,6 +92,7 @@ export async function POST(request: NextRequest) {
     // Create blog post record
     const blogPost = await prisma.blogPost.create({
       data: {
+        userId: userIdToUse,
         videoJobId: jobId || 'manual',
         title: blogResult.title,
         content: blogResult.content,

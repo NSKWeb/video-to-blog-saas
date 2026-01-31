@@ -5,9 +5,16 @@ import { logInfo, logError } from '@/utils/logger';
 import { prisma } from '@/lib/prisma';
 import { getWordPressClientForUser, publishBlogPostForUser } from '@/lib/wordpress-helper';
 import type { WordPressPostData } from '@/types';
+import { withAuth, requireResourceOwner } from '@/utils/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId, error: authError } = await withAuth(request);
+
+    if (authError || !userId) {
+      return handleApiError(new Error(authError || 'Authentication required'));
+    }
+
     const body = await request.json();
     const { blogId, wordpressConfig } = body;
 
@@ -15,7 +22,7 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Blog ID is required');
     }
 
-    logInfo('Starting WordPress publish', { blogId });
+    logInfo('Starting WordPress publish', { blogId, userId });
 
     const blogPost = await prisma.blogPost.findUnique({
       where: { id: blogId },
@@ -27,6 +34,9 @@ export async function POST(request: NextRequest) {
     if (!blogPost) {
       throw new NotFoundError('BlogPost', blogId);
     }
+
+    // Verify user owns this blog post
+    requireResourceOwner(userId, blogPost.userId);
 
     if (blogPost.wordpressPostId) {
       return successResponse({
@@ -46,8 +56,7 @@ export async function POST(request: NextRequest) {
       }
       wpConfig = wordpressConfig;
     } else {
-      // Fetch from database - TODO: Get userId from auth
-      const userId = 'system';
+      // Fetch from database
       const dbConfig = await prisma.wordPressConfig.findUnique({
         where: { userId },
       });
@@ -77,12 +86,12 @@ export async function POST(request: NextRequest) {
     };
 
     // Test WordPress connection first
-    const wpClient = await getWordPressClientForUser('system', wpConfig);
+    const wpClient = await getWordPressClientForUser(userId, wpConfig);
     if (!wpClient) {
       throw new AuthenticationError('Failed to connect to WordPress. Please check your credentials.');
     }
 
-    const publishResult = await publishBlogPostForUser('system', postData, wpConfig);
+    const publishResult = await publishBlogPostForUser(userId, postData, wpConfig);
 
     if (!publishResult || !publishResult.id) {
       throw new ExternalServiceError('WORDPRESS', 'Failed to publish post');
